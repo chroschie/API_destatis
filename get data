@@ -1,0 +1,114 @@
+# Test API zu Daten Bevölkerung pro Bundesland
+# Quelle: Statistisches Bundesamt (Destatis)
+# Dokumentation: https://www-genesis.destatis.de/genesis/misc/GENESIS-Webservices_Einfuehrung.pdf
+# necessary packages: "httr" and "jsonlite" packages need to be installed
+
+library(httr)
+library(jsonlite)
+library(dplyr)
+library(readr)
+library(here)
+
+# Login-Daten aus script login_destatis lesen
+source("login_destatis.R")
+
+# Test 1
+# Die Methode „whoami“ liefert die IP-Adresse und den Hostnamen des Aufrufers zurück. So
+# können erste Test zur Nutzung der Schnittstelle durchgeführt werden, ohne sich um die Angabe
+# irgendwelcher Parameterangaben kümmern zu müssen. 
+
+url <- "https://www-genesis.destatis.de/genesisWS/rest/2020/helloworld/whoami"
+genesis <- GET(url)
+
+http_type(genesis)
+content(genesis)
+
+# Test 2
+# Die Methode „logincheck“ liefert zurück, ob die Anmeldung mit den Zugangsdaten
+# erfolgreich war oder nicht
+
+
+query <- list(username = username,
+              password = password,
+              language = "de")
+
+url <- "https://www-genesis.destatis.de/genesisWS/rest/2020/helloworld/logincheck"
+
+login <- GET(url, query = query)
+content(login)
+#jsonlite::fromJSON(content(login, "text"), simplifyVector = FALSE)
+
+
+# richtige Methode von Destatis finden
+# data/table: gibt gesamte Tabelle als character von Länge 1 aus
+
+url_table <- "https://www-genesis.destatis.de/genesisWS/rest/2020/data/table"
+
+query <- list(username = username,
+              password = password,
+              name = "12411-0010",
+              area = "all",
+              compress = "false",
+              transpose = "false",
+              startyear = "",
+              endyear = "",
+              timeslices = "",
+              regionalvariable = "",
+              reginalkey = "",
+              classifyingvariable = "",
+              #format = "csv",
+              language = "de")
+
+laender <- GET(url_table, query = query)
+
+
+# to see the structure of the content:
+str(content(laender))
+names(content(laender))
+
+# data/result
+
+# url_result <- "https://www-genesis.destatis.de/genesisWS/rest/2020/data/resultfile"
+# 
+# query <- list(username = username,
+#               password = password,
+#               name = "12411-0010",
+#               area = "Benutzer",
+#               compress = "false",
+#               language = "de")
+# 
+# url_test <- "https://www-genesis.destatis.de/genesisWS/rest/2020/data/result?username=DE6U5U774W&password=r3oA5*487QH9vP&name=21111-0001&area=all&compress=false&language=de"
+# 
+# laender <- GET(url_test, query = query)
+
+text_content <- content(laender, "text", encoding = "UTF-8")  # character vector
+
+# parse the content
+# with httr
+
+# parsed_content <- content(laender, "parsed")  # default httr-parser for common types - but rather want to do the parsing explicitly
+# names(parsed_content)
+# parsed_content$Object[[1]]
+# str(parsed_content$Object)
+
+# parse the content
+# with jsonlite
+
+json_content <- jsonlite::fromJSON(text_content)
+
+result_text <- json_content$Object$Content
+
+result_df <- readr::read_delim(result_text,
+                               delim = ";",     # values separated by semicolon
+                               skip = 5,        # first 5 lines = description
+                               col_names = TRUE,
+                               n_max = 16       # last lines = description
+)
+
+# nur erste Spalte (Bundesland) und letzte Spalte (aktuellste Werte) behalten
+# Spalten (um)benennen
+result_df <- result_df[c(1, ncol(result_df))] %>% 
+  rename(Land = 1,
+         Bevölkerung = 2)
+
+write.csv(result_df, file = here::here("Data",  "bundesländer.csv"))
