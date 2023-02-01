@@ -1,4 +1,4 @@
-# Test API zu Daten Bevölkerung pro Bundesland
+# Test API zu Daten Bevoelkerung pro Bundesland
 # Quelle: Statistisches Bundesamt (Destatis)
 # Dokumentation: https://www-genesis.destatis.de/genesis/misc/GENESIS-Webservices_Einfuehrung.pdf
 # necessary packages: "httr" and "jsonlite" packages need to be installed
